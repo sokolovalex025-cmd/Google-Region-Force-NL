@@ -88,7 +88,8 @@ google_region_analyzer(){
     echo "Google API root HTTP 404 is not an API functionality test; API requests commonly require credentials."
   }
   analyzer_core | tee "$REPORT"
-  echo "Report saved: $REPORT"
+  chmod 600 "$REPORT"
+  echo "Report saved (permissions 600): $REPORT"
 }
 showlog(){ echo '--- last 100 log lines (not re-logged) ---';tail -100 "$LOG" | sed 's/^/[LOG] /'; }
 menu(){ root;while true;do header;echo '1) Full diagnostics';echo '2) Change target country/timezone';echo '3) Compare GeoIP with target';echo '4) DNS diagnostics';echo '5) Set DNS (persistent)';echo '6) IPv6 diagnostics';echo '7) Set target timezone';echo '8) Remove managed DNS override';echo '9) Show log';echo '10) Google Region Analyzer';echo '0) Exit';read -r -p 'Select: ' o;case "$o" in 1)diagnostics;pause;;2)settarget;pause;;3)compare;pause;;4)dns;pause;;5)dnsset;pause;;6)ipv6;pause;;7)tzset;pause;;8)restore_dns;pause;;9)showlog;pause;;10)google_region_analyzer;pause;;0)exit;;*)echo 'Invalid option';pause;;esac;done;}
