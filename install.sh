@@ -20,14 +20,11 @@ if [[ -z "$BASE" || ! -f "$BASE/google-region-force-nl.sh" || ! -f "$BASE/guardi
     local path="$1"
     curl -fsSL --retry 3 --connect-timeout 10 "$REPO/$path" -o "$BASE/$path"
   }
-  fetch install.sh
   fetch google-region-force-nl.sh
   fetch guardian.sh
   fetch uninstall.sh
   fetch systemd/google-region-force-nl-guardian.service
   fetch systemd/google-region-force-nl-guardian.timer
-  # Prevent recursion: execute the downloaded installer with the assembled local project.
-  exec bash "$BASE/install.sh" --local-bootstrap
 fi
 
 [[ $EUID -eq 0 ]] || { echo 'Run as root (or use sudo).' >&2; exit 1; }
