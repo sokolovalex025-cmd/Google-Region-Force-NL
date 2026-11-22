@@ -1,7 +1,9 @@
 [Unit]
-Description=Google Region Force NL managed settings verifier
-After=systemd-resolved.service
+Description=Google Region Force NL health verifier
+Wants=network-online.target systemd-resolved.service
+After=network-online.target systemd-resolved.service
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/share/google-region-force-nl/guardian.sh
+TimeoutStartSec=90
