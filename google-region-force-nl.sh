@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Google Region Force NL v2.1 - conservative diagnostics and optional settings
 set -Eeuo pipefail
-VERSION="2.1"
+VERSION="2.2"
 BACKUP_DIR="/root/google-region-fix-backups"
 LOG_FILE="/var/log/google-region-fix.log"
 DNS_DROPIN="/etc/systemd/resolved.conf.d/90-google-region-fix.conf"
@@ -37,5 +37,6 @@ sysctl -p "$IPV6_FILE"; }
 ipv6_enable(){ backup; rm -f "$IPV6_FILE"; sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null || true; sysctl -w net.ipv6.conf.default.disable_ipv6=0 >/dev/null || true; echo 'Removed managed IPv6-disable policy; other settings may still control IPv6.'; }
 timezone_nl(){ echo 'Current timezone:'; timedatectl; read -r -p 'Set timezone to Europe/Amsterdam? [y/N] ' yn; [[ "$yn" =~ ^[Yy]$ ]] || return; backup; timedatectl set-timezone Europe/Amsterdam; timedatectl; }
 restore(){ if [[ -f "$BACKUP_DIR/latest" ]]; then local dir; dir=$(cat "$BACKUP_DIR/latest"); echo "Backup: $dir"; find "$dir" -maxdepth 3 -type f -print || true; else echo 'No backup found.'; fi; read -r -p 'Remove this tool DNS and IPv6 overrides? [y/N] ' yn; if [[ "$yn" =~ ^[Yy]$ ]]; then backup; rm -f "$DNS_DROPIN" "$IPV6_FILE"; systemctl restart systemd-resolved 2>/dev/null || true; sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null || true; sysctl -w net.ipv6.conf.default.disable_ipv6=0 >/dev/null || true; echo 'Managed overrides removed.'; fi; }
-menu(){ while true; do header; echo '1) Full diagnostics';echo '2) Compare IP country with NL';echo '3) IPv6 diagnostics';echo '4) Set DNS persistently';echo '5) Disable IPv6 (persistent/reversible)';echo '6) Re-enable IPv6';echo '7) Set timezone to Amsterdam';echo '8) Review backups/remove overrides';echo '9) Show log';echo '0) Exit';read -r -p 'Select: ' opt;case "$opt" in 1) diagnostics;pause;;2) compare_nl;pause;;3) ipv6_status;pause;;4) dns_fix;pause;;5) ipv6_disable;pause;;6) ipv6_enable;pause;;7) timezone_nl;pause;;8) restore;pause;;9) tail -100 "$LOG_FILE";pause;;0) exit 0;;*) echo Invalid;pause;;esac;done; }
+persistence_check(){ echo '--- Persistence / boot readiness ---'; systemctl is-enabled google-region-force-nl-guardian.timer 2>/dev/null || true; systemctl is-active google-region-force-nl-guardian.timer 2>/dev/null || true; systemctl list-timers google-region-force-nl-guardian.timer --no-pager 2>/dev/null || true; systemctl status google-region-force-nl-guardian.service --no-pager 2>/dev/null || true; echo 'Managed files:'; ls -l "$DNS_DROPIN" "$IPV6_FILE" 2>/dev/null || echo 'No managed overrides'; echo 'Netplan/cloud-init/VPN settings are not changed by this tool.'; }
+menu(){ while true; do header; echo '1) Full diagnostics';echo '2) Compare IP country with NL';echo '3) IPv6 diagnostics';echo '4) Set DNS persistently';echo '5) Disable IPv6 (persistent/reversible)';echo '6) Re-enable IPv6';echo '7) Set timezone to Amsterdam';echo '8) Review backups/remove overrides';echo '9) Show log';echo '10) Verify reboot persistence / Guardian';echo '0) Exit';read -r -p 'Select: ' opt;case "$opt" in 1) diagnostics;pause;;2) compare_nl;pause;;3) ipv6_status;pause;;4) dns_fix;pause;;5) ipv6_disable;pause;;6) ipv6_enable;pause;;7) timezone_nl;pause;;8) restore;pause;;9) tail -100 "$LOG_FILE";pause;;10) persistence_check;pause;;0) exit 0;;*) echo Invalid;pause;;esac;done; }
 check_deps;menu
