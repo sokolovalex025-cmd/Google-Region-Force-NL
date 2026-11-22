@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-VERSION="3.1.0"
+VERSION="3.1.1"
 CFG=/etc/google-region-force.conf
 LOG=/var/log/google-region-force.log
 BACK=/root/google-region-force-backups
@@ -33,7 +33,7 @@ google_region_analyzer(){
   local TMP="/tmp/google-region-force-analyzer"
   mkdir -p "$TMP"
   analyzer_core(){
-    echo "===== GOOGLE REGION ANALYZER PRO v3.1 ====="
+    echo "===== GOOGLE REGION ANALYZER PRO v3.1.1 ====="
     echo "Date: $(date -Is)"
     echo "--- Public IP / GeoIP signals ---"
     for fam in -4 -6; do
@@ -82,7 +82,7 @@ google_region_analyzer(){
     ip -4 route; ip -6 route 2>/dev/null || true
     resolvectl status 2>/dev/null | sed -n '1,40p' || true
     echo "--- IP registration (best effort) ---"
-    if command -v whois >/dev/null 2>&1; then whois "$(curl -4 -fsS --max-time 8 https://api.ipify.org 2>/dev/null || true)" | head -45; else echo "whois utility not installed; skipped"; fi
+    if command -v whois >/dev/null 2>&1; then local wip; wip=$(curl -4 -fsS --max-time 8 https://api.ipify.org 2>/dev/null || true); if [[ -n "$wip" ]]; then whois "$wip" 2>&1 | head -45 || true; else echo "Public IPv4 unavailable; WHOIS skipped"; fi; else echo "whois utility not installed; skipped"; fi
     echo "--- Interpretation ---"
     echo "Locale (lang) and gl parameter are not proof of IP country. GeoIP providers may disagree."
     echo "Google API root HTTP 404 is not an API functionality test; API requests commonly require credentials."
