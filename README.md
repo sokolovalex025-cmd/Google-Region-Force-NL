@@ -8,9 +8,9 @@ Persistent, conservative DNS/IPv6 configuration helper for Ubuntu 24.04+. This t
 - backups, diagnostics, and removal of this tool's overrides
 - systemd boot verifier/guardian: checks the tool's DNS override and reapplies the IPv6 sysctl file if present; it does not rewrite routing, firewall, Netplan, VPN or DNS settings
 
-## Install
+## Install (one command)
 ```bash
-sudo bash install.sh
+curl -fsSL https://raw.githubusercontent.com/sokolovalex025-cmd/Google-Region-Force-NL/main/install.sh | sudo bash
 ```
 
 ## Run
