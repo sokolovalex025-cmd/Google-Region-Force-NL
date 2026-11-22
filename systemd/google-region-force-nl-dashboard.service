@@ -1,0 +1,12 @@
+[Unit]
+Description=Google Region Force NL local read-only dashboard
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/share/google-region-force-nl/dashboard.py
+Restart=on-failure
+RestartSec=5
+User=root
+[Install]
+WantedBy=multi-user.target
