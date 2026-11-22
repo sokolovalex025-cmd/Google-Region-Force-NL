@@ -1,14 +1,18 @@
-# Google Region Force NL
+# Google Region Force NL v2.1
 
-Persistent, conservative DNS/IPv6 configuration helper for Ubuntu 24.04+. This tool **cannot guarantee** Google's detected region: Google may use account settings, browser cookies, location signals and its own GeoIP data.
+Conservative Ubuntu 24.04+ diagnostic/configuration helper. It cannot guarantee Google's detected region or eligibility.
 
 ## Features
-- interactive DNS selection using `systemd-resolved` drop-in
-- optional reversible IPv6 disable (warning: may impact VPNs, Docker and other services)
-- backups, diagnostics, and removal of this tool's overrides
-- systemd boot verifier/guardian: checks the tool's DNS override and reapplies the IPv6 sysctl file if present; it does not rewrite routing, firewall, Netplan, VPN or DNS settings
+- Multi-provider IPv4/IPv6 country checks (best effort; providers may rate-limit).
+- DNS checks for Google, Gemini, YouTube, Google APIs, Googlevideo and Gstatic.
+- IPv4 HTTP reachability checks with status, remote IP and timing.
+- Persistent DNS options through systemd-resolved.
+- Optional IPv6 sysctl policy with backup and confirmation.
+- Optional Europe/Amsterdam timezone setting (backup + confirmation).
+- Guardian quick checks at boot and daily; it logs health information and only reapplies this tool's explicit IPv6 policy.
+- Does not modify routes, firewall, Netplan, cloud-init, Docker, Xray, AntiZapret or VPN configuration.
 
-## Install (one command)
+## Install
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sokolovalex025-cmd/Google-Region-Force-NL/main/install.sh | sudo bash
 ```
@@ -18,15 +22,16 @@ curl -fsSL https://raw.githubusercontent.com/sokolovalex025-cmd/Google-Region-Fo
 sudo google-region-force-nl
 ```
 
+Menu includes Full diagnostics, IP-country comparison, IPv6 diagnostics, DNS, IPv6 controls, Amsterdam timezone, backups and log.
+
 ## Guardian
 ```bash
-systemctl status google-region-force-nl-guardian.service
+systemctl status google-region-force-nl-guardian.timer
 journalctl -u google-region-force-nl-guardian.service
+tail -100 /var/log/google-region-force-nl-guardian.log
 ```
-A timer runs at boot and daily. The guardian only verifies managed files and applies the managed IPv6 sysctl file if one exists; it does not silently disable IPv6 or change DNS selection.
+
+The guardian is a diagnostic helper, not a routing watchdog. GeoIP services can rate-limit or disagree. HTTP 200 indicates reachability, not account-region eligibility.
 
 ## Uninstall
-```bash
-sudo bash uninstall.sh
-```
-Uninstall removes the systemd guardian and launcher, but leaves DNS/sysctl overrides intact until removed through the tool's menu. This is deliberate to avoid unexpected network changes.
+Use the project's uninstall script. DNS and IPv6 managed overrides remain until removed using the tool's menu, by design.
