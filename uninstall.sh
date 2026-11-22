@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 [[ $EUID -eq 0 ]] || { echo 'Run as root'; exit 1; }
-systemctl disable --now google-region-force-nl-guardian.timer 2>/dev/null || true
-rm -f /etc/systemd/system/google-region-force-nl-guardian.service /etc/systemd/system/google-region-force-nl-guardian.timer
+systemctl disable --now google-region-force-nl-guardian.timer google-region-force-nl-dashboard.service 2>/dev/null || true 2>/dev/null || true
+rm -f /etc/systemd/system/google-region-force-nl-guardian.service /etc/systemd/system/google-region-force-nl-guardian.timer /etc/systemd/system/google-region-force-nl-dashboard.service
 rm -f /usr/local/sbin/google-region-force-nl
 rm -rf /usr/local/share/google-region-force-nl
 systemctl daemon-reload
