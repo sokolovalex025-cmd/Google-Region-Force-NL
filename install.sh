@@ -11,7 +11,7 @@ BASE=""
 if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
   BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
-if [[ -z "$BASE" || ! -f "$BASE/google-region-force-nl.sh" || ! -f "$BASE/guardian.sh" || ! -f "$BASE/systemd/google-region-force-nl-guardian.timer" ]]; then
+if [[ -z "$BASE" || ! -f "$BASE/google-region-force-nl.sh" || ! -f "$BASE/guardian.sh" || ! -f "$BASE/dashboard.py" || ! -f "$BASE/systemd/google-region-force-nl-dashboard.service" || ! -f "$BASE/systemd/google-region-force-nl-guardian.timer" ]]; then
   command -v curl >/dev/null 2>&1 || { echo "curl is required." >&2; exit 1; }
   TMP="$(mktemp -d)"
   BASE="$TMP/project"
@@ -28,7 +28,7 @@ if [[ -z "$BASE" || ! -f "$BASE/google-region-force-nl.sh" || ! -f "$BASE/guardi
 fi
 
 [[ $EUID -eq 0 ]] || { echo 'Run as root (or use sudo).' >&2; exit 1; }
-[[ -f "$BASE/google-region-force-nl.sh" && -f "$BASE/guardian.sh" && -f "$BASE/systemd/google-region-force-nl-guardian.service" && -f "$BASE/systemd/google-region-force-nl-guardian.timer" ]] || {
+[[ -f "$BASE/google-region-force-nl.sh" && -f "$BASE/guardian.sh" && -f "$BASE/systemd/google-region-force-nl-guardian.service" && -f "$BASE/dashboard.py" && -f "$BASE/systemd/google-region-force-nl-dashboard.service" && -f "$BASE/systemd/google-region-force-nl-guardian.timer" ]] || {
   echo 'Project files missing; installation aborted.' >&2; exit 1;
 }
 
@@ -49,4 +49,4 @@ systemctl enable --now google-region-force-nl-guardian.timer
 echo
 echo "Google Region Force NL installed."
 echo "Run: google-region-force-nl"
-echo "Timer: systemctl status google-region-force-nl-guardian.timer"
+echo "Timer: systemctl status google-region-force-nl-guardian.timer"\necho "Dashboard: localhost:8787 (use SSH port forwarding)"
