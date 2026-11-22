@@ -67,11 +67,14 @@ google_region_analyzer(){
       "https://www.googleapis.com/"
       "https://generativelanguage.googleapis.com/"
     )
+    local i=0 body headers
     for url in "${urls[@]}"; do
-      curl -4 -sS -L -o "$TMP/body.html" -D "$TMP/headers.txt" --max-time 15 -w "$url | HTTP %{http_code} | IP %{remote_ip} | %{time_total}s\n" "$url" || true
-      grep -iE '^(HTTP/|location:|content-language:|x-country:|x-region:)' "$TMP/headers.txt" | tail -6 || true
-      if [[ "$url" == *"google.com/?hl=en"* ]]; then
-        grep -Eo '<html[^>]*>|<title>[^<]{0,120}</title>' "$TMP/body.html" | head -3 || true
+      i=$((i+1)); body="$TMP/body-$i.html"; headers="$TMP/headers-$i.txt"
+      rm -f "$body" "$headers"
+      curl -4 -sS -L -o "$body" -D "$headers" --max-time 15 -w "$url | HTTP %{http_code} | IP %{remote_ip} | %{time_total}s\\n" "$url" || echo "Request failed: $url"
+      if [[ -s "$headers" ]]; then grep -iE '^(HTTP/|location:|content-language:|x-country:|x-region:)' "$headers" | tail -6 || true; fi
+      if [[ "$url" == "https://www.google.com/" || "$url" == "https://www.google.com/?hl=en" || "$url" == "https://www.google.com/?hl=en&gl=NL" || "$url" == "https://www.google.com/?hl=en&gl=BG" || "$url" == "https://www.google.com/?hl=en&gl=RU" ]]; then
+        [[ -s "$body" ]] && grep -Eo '<html[^>]*>|<title>[^<]{0,120}</title>' "$body" | head -3 || true
       fi
     done
     echo "--- Locale hints (html lang/title only) ---"
