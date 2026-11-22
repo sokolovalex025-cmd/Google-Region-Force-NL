@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler,HTTPServer
 from datetime import datetime
 HOST,PORT="127.0.0.1",8787
 def run(c):
- try:return (subprocess.run(c,capture_output=True,text=True,timeout=10).stdout+subprocess.run(c,capture_output=True,text=True,timeout=10).stderr).strip()
+ try:\n  p=subprocess.run(c,capture_output=True,text=True,timeout=10);return (p.stdout+p.stderr).strip()
  except Exception as e:return str(e)
 def fetch(u):
  try:
