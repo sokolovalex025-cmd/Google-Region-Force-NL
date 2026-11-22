@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Google Region Force NL verifier at boot and daily
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=24h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
