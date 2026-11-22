@@ -1,0 +1,7 @@
+[Unit]
+Description=Google Region Force NL managed settings verifier
+After=systemd-resolved.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/share/google-region-force-nl/guardian.sh
