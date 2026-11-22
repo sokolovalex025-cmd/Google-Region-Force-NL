@@ -28,6 +28,38 @@ dnsset(){ echo '1 Cloudflare  2 Google  3 Quad9  4 OpenDNS';read -r -p 'Choice: 
 ipv6(){ echo 'IPv6 sysctl:';sysctl net.ipv6.conf.all.disable_ipv6 net.ipv6.conf.default.disable_ipv6 2>&1||true;echo 'IPv6 addresses:';ip -6 addr;echo 'IPv6 routes:';ip -6 route||true;echo 'IPv6 GeoIP:';geo_one -6 IPv6; }
 tzset(){ if timedatectl list-timezones | grep -Fxq "$TZ_TARGET";then backup;timedatectl set-timezone "$TZ_TARGET";timedatectl;else echo "Timezone unavailable: $TZ_TARGET";fi; }
 restore_dns(){ read -r -p 'Remove ONLY managed DNS override and restart resolved? [y/N] ' y;if [[ "$y" =~ ^[Yy]$ ]];then backup;rm -f "$DNS";systemctl restart systemd-resolved||true;echo 'Managed DNS override removed. Other resolver settings were not changed.';fi; }
+google_region_analyzer(){
+  echo '===== GOOGLE REGION ANALYZER ====='
+  echo '--- Public IP country signals ---'
+  for fam in -4 -6; do
+    label=IPv4; [[ "$fam" == -6 ]] && label=IPv6
+    echo "[$label]"
+    for url in https://ipinfo.io/country https://ipapi.co/country/ https://ifconfig.co/country-iso; do
+      printf '%s: ' "$url"
+      curl "$fam" -fsS --max-time 8 "$url" 2>/dev/null | tr -d '[:space:]' || echo 'unavailable'
+      echo
+    done
+    printf 'IP: '; curl "$fam" -fsS --max-time 8 https://api.ipify.org 2>/dev/null || echo 'unavailable'; echo
+  done
+  echo '--- Google DNS ---'
+  for host in google.com www.google.com accounts.google.com gemini.google.com youtube.com googleapis.com googlevideo.com; do
+    printf '%-24s ' "$host"; getent ahostsv4 "$host" | awk '!seen[$1]++{print $1}' | paste -sd ',' || true
+  done
+  echo '--- Google HTTPS / headers and response status ---'
+  for url in https://www.google.com/ https://www.google.com/?hl=en https://www.google.com/?gl=NL https://accounts.google.com/ https://gemini.google.com/ https://www.youtube.com/ https://www.googleapis.com/ https://generativelanguage.googleapis.com/; do
+    curl -4 -sS -L -o /dev/null --max-time 12 -w '%{url_effective} | HTTP %{http_code} | IP %{remote_ip} | %{time_total}s\n' "$url" || true
+  done
+  echo '--- Google response country/locale hints (non-invasive) ---'
+  for url in https://www.google.com/ https://www.google.com/?gl=NL https://www.google.com/?gl=RU; do
+    echo "URL: $url"
+    curl -4 -sS -L --max-time 10 "$url" 2>/dev/null | grep -Eo '<html[^>]*>|<title>[^<]{0,150}</title>|lang="[^"]+"' | head -4 || true
+  done
+  echo '--- Route and resolver summary ---'
+  ip -4 route; ip -6 route 2>/dev/null || true
+  resolvectl status 2>/dev/null | sed -n '1,45p' || true
+  echo 'NOTE: Google region is not conclusively determined by GeoIP, DNS, or a single HTTP check.'
+  echo 'Gemini API root response is only a connectivity signal; API calls normally require an API key.'
+}
 showlog(){ echo '--- last 100 log lines (not re-logged) ---';tail -100 "$LOG" | sed 's/^/[LOG] /'; }
-menu(){ root;while true;do header;echo '1) Full diagnostics';echo '2) Change target country/timezone';echo '3) Compare GeoIP with target';echo '4) DNS diagnostics';echo '5) Set DNS (persistent)';echo '6) IPv6 diagnostics';echo '7) Set target timezone';echo '8) Remove managed DNS override';echo '9) Show log';echo '0) Exit';read -r -p 'Select: ' o;case "$o" in 1)diagnostics;pause;;2)settarget;pause;;3)compare;pause;;4)dns;pause;;5)dnsset;pause;;6)ipv6;pause;;7)tzset;pause;;8)restore_dns;pause;;9)showlog;pause;;0)exit;;*)echo 'Invalid option';pause;;esac;done;}
+menu(){ root;while true;do header;echo '1) Full diagnostics';echo '2) Change target country/timezone';echo '3) Compare GeoIP with target';echo '4) DNS diagnostics';echo '5) Set DNS (persistent)';echo '6) IPv6 diagnostics';echo '7) Set target timezone';echo '8) Remove managed DNS override';echo '9) Show log';echo '10) Google Region Analyzer';echo '0) Exit';read -r -p 'Select: ' o;case "$o" in 1)diagnostics;pause;;2)settarget;pause;;3)compare;pause;;4)dns;pause;;5)dnsset;pause;;6)ipv6;pause;;7)tzset;pause;;8)restore_dns;pause;;9)showlog;pause;;10)google_region_analyzer;pause;;0)exit;;*)echo 'Invalid option';pause;;esac;done;}
 menu
