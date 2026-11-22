@@ -39,3 +39,16 @@ Use menu option 10 to inspect reboot readiness.
 
 ## Uninstall
 Run project's uninstall script. Managed DNS/sysctl overrides remain until removed through the menu, intentionally.
+
+## PRO dashboard (read-only)
+The installer also enables a local read-only dashboard on `127.0.0.1:8787`. It is not exposed publicly. Access it over an SSH tunnel from your computer:
+
+```bash
+ssh -L 8787:127.0.0.1:8787 root@YOUR_SERVER
+```
+
+Then open `http://127.0.0.1:8787` in your browser. Dashboard service:
+
+```bash
+systemctl status google-region-force-nl-dashboard.service
+```
