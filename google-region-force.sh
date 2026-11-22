@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-VERSION="3.1.1"
+VERSION="3.1.2"
 CFG=/etc/google-region-force.conf
 LOG=/var/log/google-region-force.log
 BACK=/root/google-region-force-backups
@@ -30,10 +30,11 @@ tzset(){ if timedatectl list-timezones | grep -Fxq "$TZ_TARGET";then backup;time
 restore_dns(){ read -r -p 'Remove ONLY managed DNS override and restart resolved? [y/N] ' y;if [[ "$y" =~ ^[Yy]$ ]];then backup;rm -f "$DNS";systemctl restart systemd-resolved||true;echo 'Managed DNS override removed. Other resolver settings were not changed.';fi; }
 google_region_analyzer(){
   local REPORT="/root/google-region-report.txt"
-  local TMP="/tmp/google-region-force-analyzer"
-  mkdir -p "$TMP"
+  local TMP
+  umask 077
+  TMP=$(mktemp -d /tmp/google-region-force-analyzer.XXXXXX) || { echo "Cannot create temporary directory"; return 1; }
   analyzer_core(){
-    echo "===== GOOGLE REGION ANALYZER PRO v3.1.1 ====="
+    echo "===== GOOGLE REGION ANALYZER PRO v3.1.2 ====="
     echo "Date: $(date -Is)"
     echo "--- Public IP / GeoIP signals ---"
     for fam in -4 -6; do
@@ -89,6 +90,7 @@ google_region_analyzer(){
   }
   analyzer_core | tee "$REPORT"
   chmod 600 "$REPORT"
+  rm -rf "$TMP"
   echo "Report saved (permissions 600): $REPORT"
 }
 showlog(){ echo '--- last 100 log lines (not re-logged) ---';tail -100 "$LOG" | sed 's/^/[LOG] /'; }
