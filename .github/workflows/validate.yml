@@ -16,7 +16,7 @@ jobs:
           bash -n google-region-force.sh
           bash -n install-universal.sh
       - name: ShellCheck
-        uses: ludeeus/action-shellcheck@master
+        uses: ludeeus/action-shellcheck@00b27aa7cb85167568cb48a3838b75f4265f2bca
         with:
           severity: warning
           scandir: .
