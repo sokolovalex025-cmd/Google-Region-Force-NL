@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-VERSION="3.2.0"
+VERSION="3.3.0"
 CFG=/etc/google-region-force.conf
 LOG=/var/log/google-region-force.log
 BACK=/root/google-region-force-backups
@@ -8,8 +8,12 @@ DNS=/etc/systemd/resolved.conf.d/90-google-region-force.conf
 mkdir -p "$BACK"; touch "$LOG"
 exec > >(tee -a "$LOG") 2>&1
 TARGET=NL; TZ_TARGET=Europe/Amsterdam
-if [[ -f "$CFG" ]]; then source "$CFG"; fi
+if [[ -f "$CFG" ]]; then
+  [[ -O "$CFG" && ! -L "$CFG" ]] || { echo "Unsafe config ownership/type; refusing to source $CFG"; exit 1; }
+  source "$CFG"
+fi
 TARGET=${TARGET:-NL}; TZ_TARGET=${TZ_TARGET:-Europe/Amsterdam}
+[[ "$TARGET" =~ ^[A-Z]{2}$ ]] || { echo "Invalid TARGET in config; using NL"; TARGET=NL; }
 root(){ [[ $EUID -eq 0 ]] || { echo 'Run as root.'; exit 1; }; }
 pause(){ read -r -p 'Press Enter...' _ || true; }
 backup(){ local d="$BACK/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d"; for f in /etc/resolv.conf /etc/systemd/resolved.conf "$DNS" "$CFG"; do [[ -e "$f" ]] && cp -a --parents "$f" "$d/" || true; done; resolvectl status >"$d/resolved.txt" 2>&1 || true; timedatectl >"$d/time.txt" 2>&1 || true; echo "$d" >"$BACK/latest"; echo "Backup created: $d"; }
@@ -33,6 +37,7 @@ google_region_analyzer(){
   local TMP
   umask 077
   TMP=$(mktemp -d /tmp/google-region-force-analyzer.XXXXXX) || { echo "Cannot create temporary directory"; return 1; }
+  trap 'rm -rf "$TMP"' RETURN
   analyzer_core(){
     echo "===== GOOGLE REGION FORCE PRO v3.2.0 | DEEP ANALYZER ====="
     echo "Date: $(date -Is)"
@@ -78,6 +83,10 @@ google_region_analyzer(){
     local yt_urls=("https://www.youtube.com/" "https://www.youtube.com/?hl=en&gl=$TARGET" "https://www.youtube.com/watch?v=dQw4w9WgXcQ" "https://www.youtube.com/feed/trending")
     i=0
     for url in "${yt_urls[@]}";do i=$((i+1));body="$TMP/yt-body-$i";headers="$TMP/yt-headers-$i";rm -f "$body" "$headers";curl -4 -sS -L -o "$body" -D "$headers" --max-time 18 -w "$url | HTTP %{http_code} | IP %{remote_ip} | %{time_total}s\n" "$url" || echo "Request failed: $url";if [[ -s "$headers" ]];then grep -iE '^(HTTP/|location:|content-language:)' "$headers" | tail -5 || true;fi;if [[ -s "$body" ]];then grep -Eo '<title>[^<]{0,160}</title>|ytInitialPlayerResponse|playabilityStatus|LOGIN_REQUIRED|ERROR' "$body" | head -5 || true;fi;done
+    echo "--- Dependency / environment preflight ---"
+    for tool in curl getent ip resolvectl timedatectl locale grep awk; do
+      if command -v "$tool" >/dev/null 2>&1; then echo "$tool: available"; else echo "$tool: missing"; fi
+    done
     echo "--- DNS / routes / interfaces ---"
     for host in google.com accounts.google.com gemini.google.com youtube.com googleapis.com googlevideo.com gstatic.com;do printf '%-24s ' "$host";getent ahostsv4 "$host"|awk '!seen[$1]++{print $1}'|paste -sd ','||true;done
     ip -4 route;ip -6 route 2>/dev/null||true;ip -br addr
@@ -108,7 +117,6 @@ google_region_analyzer(){
   }
   analyzer_core | tee "$REPORT"
   chmod 600 "$REPORT"
-  rm -rf "$TMP"
   echo "Report saved (permissions 600): $REPORT"
 }
 showlog(){ echo '--- last 100 log lines (not re-logged) ---';tail -100 "$LOG" | sed 's/^/[LOG] /'; }
