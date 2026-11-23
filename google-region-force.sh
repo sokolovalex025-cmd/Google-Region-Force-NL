@@ -97,8 +97,7 @@ google_region_analyzer(){
         401|403) echo "  Signal: endpoint reachable; access/auth policy may apply";;
         404) echo "  Signal: host reachable; root/path may not provide a resource";;
         5??) echo "  Signal: remote server error";;
-        000|\|*) echo "  Signal: connection/TLS/DNS failure or timeout";;
-        *) echo "  Signal: inconclusive";;
+        *) echo "  Signal: inconclusive (check DNS, TLS, route, or timeout separately)";;
       esac
     done
     echo "--- Interpretation ---"
