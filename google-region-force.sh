@@ -43,7 +43,7 @@ google_region_analyzer(){
   TMP=$(mktemp -d /tmp/google-region-force-analyzer.XXXXXX) || { echo "Cannot create temporary directory"; return 1; }
   trap 'rm -rf "$TMP"' RETURN
   analyzer_core(){
-    echo "===== GOOGLE REGION FORCE PRO v3.2.0 | DEEP ANALYZER ====="
+    echo "===== GOOGLE REGION FORCE PRO v$VERSION | DEEP ANALYZER ====="
     echo "Date: $(date -Is)"
     echo "--- Public IP / GeoIP signals ---"
     local ipv4 ipv6
@@ -70,7 +70,7 @@ google_region_analyzer(){
     echo "Target: $TARGET | matching provider signals: $match | conflicting/other signals: $mismatch | usable signals: $signals"
     if (( signals == 0 ));then echo "Confidence: INSUFFICIENT DATA";elif (( match == signals ));then echo "Confidence: CONSISTENT GeoIP signals";elif (( match > 0 ));then echo "Confidence: MIXED GeoIP signals";else echo "Confidence: NO GeoIP provider currently reports target";fi
     echo "--- Google Locale Matrix ---"
-    local matrix_urls=("https://www.google.com/" "https://www.google.com/?hl=en" "https://www.google.com/?hl=en&gl=$TARGET" "https://www.google.com/?hl=en&gl=RU" "https://www.google.com/?hl=en&gl=US" "https://www.google.com/?hl=en&gl=DE")
+    local matrix_urls=("https://www.google.com/" "https://www.google.com/?hl=en" "https://www.google.com/?hl=en&gl=$TARGET" "https://www.google.com/?hl=en&gl=RU" "https://www.google.com/?hl=en&gl=US" "https://www.google.com/?hl=en&gl=GB")
     local i=0 url body headers status
     for url in "${matrix_urls[@]}"; do
       i=$((i+1));body="$TMP/matrix-body-$i";headers="$TMP/matrix-headers-$i";rm -f "$body" "$headers"
