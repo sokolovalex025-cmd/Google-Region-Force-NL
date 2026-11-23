@@ -16,7 +16,7 @@ cat > /usr/local/sbin/google-region-force <<'LAUNCH'
 exec bash /usr/local/share/google-region-force/google-region-force.sh "$@"
 LAUNCH
 chmod 0755 /usr/local/sbin/google-region-force
-echo "Installed universal Google Region Force PRO v3.3.1 (script version detected at runtime)."
+echo "Installed universal Google Region Force PRO (version is read from the downloaded script)."
 echo "Starting Google Region Force PRO..."
 if [[ -r /dev/tty && -w /dev/tty ]]; then
   google-region-force </dev/tty
