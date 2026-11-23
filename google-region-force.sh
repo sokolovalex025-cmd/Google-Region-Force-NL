@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-VERSION="3.1.3"
+VERSION="3.2.0"
 CFG=/etc/google-region-force.conf
 LOG=/var/log/google-region-force.log
 BACK=/root/google-region-force-backups
@@ -34,7 +34,7 @@ google_region_analyzer(){
   umask 077
   TMP=$(mktemp -d /tmp/google-region-force-analyzer.XXXXXX) || { echo "Cannot create temporary directory"; return 1; }
   analyzer_core(){
-    echo "===== GOOGLE REGION DEEP ANALYZER PRO v3.1.3 ====="
+    echo "===== GOOGLE REGION FORCE PRO v3.2.0 | DEEP ANALYZER ====="
     echo "Date: $(date -Is)"
     echo "--- Public IP / GeoIP signals ---"
     local ipv4 ipv6
@@ -85,6 +85,22 @@ google_region_analyzer(){
     echo "--- Time / locale ---";timedatectl 2>&1||true;locale 2>&1||true
     echo "--- IP registration (best effort) ---"
     if command -v whois >/dev/null 2>&1;then if [[ -n "$ipv4" ]];then whois "$ipv4" 2>&1|head -45||true;else echo "IPv4 unavailable; WHOIS skipped";fi;else echo "whois utility not installed; skipped";fi
+    echo "--- Google Service Health Summary ---"
+    local test_urls=("https://www.google.com/" "https://accounts.google.com/" "https://gemini.google.com/app" "https://www.youtube.com/" "https://www.googleapis.com/" "https://www.gstatic.com/")
+    local health_names=("Search" "Account endpoint" "Gemini web" "YouTube web" "Google APIs root" "Google static assets")
+    local h=0 hurl hcode
+    for hurl in "${test_urls[@]}";do
+      h=$((h+1));hcode=$(curl -4 -sS -L -o /dev/null --max-time 12 -w '%{http_code}' "$hurl" 2>/dev/null || true)
+      printf '%-22s HTTP %s\n' "${health_names[$((h-1))]}" "${hcode:-FAIL}"
+      case "$hcode" in
+        2??|3??) echo "  Signal: endpoint responds";;
+        401|403) echo "  Signal: endpoint reachable; access/auth policy may apply";;
+        404) echo "  Signal: host reachable; root/path may not provide a resource";;
+        5??) echo "  Signal: remote server error";;
+        000|\|*) echo "  Signal: connection/TLS/DNS failure or timeout";;
+        *) echo "  Signal: inconclusive";;
+      esac
+    done
     echo "--- Interpretation ---"
     echo "GeoIP services are external estimates; Google Locale Matrix reflects requested URL signals and response HTML only."
     echo "Gemini HTTP status cannot confirm sign-in, account eligibility, or regional availability."
