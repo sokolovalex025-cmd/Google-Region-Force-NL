@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-VERSION="3.1.2"
+VERSION="3.1.3"
 CFG=/etc/google-region-force.conf
 LOG=/var/log/google-region-force.log
 BACK=/root/google-region-force-backups
@@ -34,62 +34,62 @@ google_region_analyzer(){
   umask 077
   TMP=$(mktemp -d /tmp/google-region-force-analyzer.XXXXXX) || { echo "Cannot create temporary directory"; return 1; }
   analyzer_core(){
-    echo "===== GOOGLE REGION ANALYZER PRO v3.1.2 ====="
+    echo "===== GOOGLE REGION DEEP ANALYZER PRO v3.1.3 ====="
     echo "Date: $(date -Is)"
     echo "--- Public IP / GeoIP signals ---"
+    local ipv4 ipv6
+    ipv4=$(curl -4 -fsS --max-time 8 https://api.ipify.org 2>/dev/null || true)
+    ipv6=$(curl -6 -fsS --max-time 8 https://api.ipify.org 2>/dev/null || true)
+    echo "IPv4: ${ipv4:-unavailable}"; echo "IPv6: ${ipv6:-unavailable}"
+    local signals=0 match=0 mismatch=0
     for fam in -4 -6; do
       local label; label=IPv4; [[ "$fam" == -6 ]] && label=IPv6
+      [[ "$fam" == -4 && -z "$ipv4" || "$fam" == -6 && -z "$ipv6" ]] && { echo "[$label] skipped (address unavailable)"; continue; }
       echo "[$label]"
-      for url in https://ipinfo.io/country https://ipapi.co/country/ https://ifconfig.co/country-iso; do
-        printf '%s: ' "$url"
-        local val; val=$(curl "$fam" -fsS --max-time 8 "$url" 2>/dev/null | tr -d '[:space:]' || true)
-        echo "${val:-unavailable}"
+      local provider country
+      for provider in ipinfo ipapi ifconfig; do
+        case "$provider" in
+          ipinfo) country=$(curl "$fam" -fsS --max-time 8 https://ipinfo.io/country 2>/dev/null | tr -d '[:space:]' || true);;
+          ipapi) country=$(curl "$fam" -fsS --max-time 8 https://ipapi.co/country/ 2>/dev/null | tr -d '[:space:]' || true);;
+          ifconfig) country=$(curl "$fam" -fsS --max-time 8 https://ifconfig.co/country-iso 2>/dev/null | tr -d '[:space:]' || true);;
+        esac
+        country=${country:-unavailable}; echo "$provider: $country"
+        if [[ "$country" =~ ^[A-Z]{2}$ ]]; then signals=$((signals+1)); if [[ "$country" == "$TARGET" ]];then match=$((match+1));else mismatch=$((mismatch+1));fi;fi
       done
-      printf 'Public IP: '
-      local ip; ip=$(curl "$fam" -fsS --max-time 8 https://api.ipify.org 2>/dev/null || true)
-      echo "${ip:-unavailable}"
     done
-    echo "--- DNS ---"
-    for host in google.com www.google.com accounts.google.com gemini.google.com youtube.com googleapis.com googlevideo.com gstatic.com; do
-      printf '%-24s ' "$host"
-      getent ahostsv4 "$host" | awk '!seen[$1]++{print $1}' | paste -sd ',' || true
+    echo "--- GeoIP signal summary (not Google's internal decision) ---"
+    echo "Target: $TARGET | matching provider signals: $match | conflicting/other signals: $mismatch | usable signals: $signals"
+    if (( signals == 0 ));then echo "Confidence: INSUFFICIENT DATA";elif (( match == signals ));then echo "Confidence: CONSISTENT GeoIP signals";elif (( match > 0 ));then echo "Confidence: MIXED GeoIP signals";else echo "Confidence: NO GeoIP provider currently reports target";fi
+    echo "--- Google Locale Matrix ---"
+    local matrix_urls=("https://www.google.com/" "https://www.google.com/?hl=en" "https://www.google.com/?hl=en&gl=$TARGET" "https://www.google.com/?hl=en&gl=RU" "https://www.google.com/?hl=en&gl=US" "https://www.google.com/?hl=en&gl=DE")
+    local i=0 url body headers status
+    for url in "${matrix_urls[@]}"; do
+      i=$((i+1));body="$TMP/matrix-body-$i";headers="$TMP/matrix-headers-$i";rm -f "$body" "$headers"
+      status=$(curl -4 -sS -L -o "$body" -D "$headers" --max-time 15 -w '%{http_code}' "$url" 2>&1) || true
+      echo "$url | result: $status"
+      if [[ -s "$headers" ]];then grep -iE '^(HTTP/|location:|content-language:)' "$headers" | tail -4 || true;fi
+      if [[ -s "$body" ]];then grep -Eo '<html[^>]*>|<title>[^<]{0,120}</title>' "$body" | head -2 || true;else echo "No response body (failed/empty)";fi
     done
-    echo "--- HTTP checks ---"
-    local urls=(
-      "https://www.google.com/"
-      "https://www.google.com/?hl=en"
-      "https://www.google.com/?hl=en&gl=NL"
-      "https://www.google.com/?hl=en&gl=BG"
-      "https://www.google.com/?hl=en&gl=RU"
-      "https://accounts.google.com/"
-      "https://gemini.google.com/"
-      "https://www.youtube.com/"
-      "https://www.googleapis.com/"
-      "https://generativelanguage.googleapis.com/"
-    )
-    local i=0 body headers
-    for url in "${urls[@]}"; do
-      i=$((i+1)); body="$TMP/body-$i.html"; headers="$TMP/headers-$i.txt"
-      rm -f "$body" "$headers"
-      curl -4 -sS -L -o "$body" -D "$headers" --max-time 15 -w "$url | HTTP %{http_code} | IP %{remote_ip} | %{time_total}s\\n" "$url" || echo "Request failed: $url"
-      if [[ -s "$headers" ]]; then grep -iE '^(HTTP/|location:|content-language:|x-country:|x-region:)' "$headers" | tail -6 || true; fi
-      if [[ "$url" == "https://www.google.com/" || "$url" == "https://www.google.com/?hl=en" || "$url" == "https://www.google.com/?hl=en&gl=NL" || "$url" == "https://www.google.com/?hl=en&gl=BG" || "$url" == "https://www.google.com/?hl=en&gl=RU" ]]; then
-        [[ -s "$body" ]] && grep -Eo '<html[^>]*>|<title>[^<]{0,120}</title>' "$body" | head -3 || true
-      fi
-    done
-    echo "--- Locale hints (html lang/title only) ---"
-    for url in "https://www.google.com/" "https://www.google.com/?hl=en&gl=NL" "https://www.google.com/?hl=en&gl=BG" "https://www.google.com/?hl=en&gl=RU"; do
-      echo "$url"
-      curl -4 -sS -L --max-time 12 "$url" 2>/dev/null | grep -Eo '<html[^>]*>|<title>[^<]{0,120}</title>' | head -3 || true
-    done
-    echo "--- Route / DNS configuration ---"
-    ip -4 route; ip -6 route 2>/dev/null || true
-    resolvectl status 2>/dev/null | sed -n '1,40p' || true
+    echo "--- Gemini web checks (HTTP reachability only; not account eligibility) ---"
+    local gem_urls=("https://gemini.google.com/" "https://gemini.google.com/app" "https://accounts.google.com/")
+    i=0
+    for url in "${gem_urls[@]}";do i=$((i+1));body="$TMP/gemini-body-$i";headers="$TMP/gemini-headers-$i";rm -f "$body" "$headers";curl -4 -sS -L -o "$body" -D "$headers" --max-time 18 -w "$url | HTTP %{http_code} | IP %{remote_ip} | %{time_total}s\n" "$url" || echo "Request failed: $url";if [[ -s "$headers" ]];then grep -iE '^(HTTP/|location:|content-language:)' "$headers" | tail -5 || true;fi;if [[ -s "$body" ]];then grep -Eio 'unsupported|not available|country|region|sign in|login|error' "$body" | sort | uniq -c | head -8 || true;fi;done
+    echo "--- YouTube deep HTTP checks (not playback validation) ---"
+    local yt_urls=("https://www.youtube.com/" "https://www.youtube.com/?hl=en&gl=$TARGET" "https://www.youtube.com/watch?v=dQw4w9WgXcQ" "https://www.youtube.com/feed/trending")
+    i=0
+    for url in "${yt_urls[@]}";do i=$((i+1));body="$TMP/yt-body-$i";headers="$TMP/yt-headers-$i";rm -f "$body" "$headers";curl -4 -sS -L -o "$body" -D "$headers" --max-time 18 -w "$url | HTTP %{http_code} | IP %{remote_ip} | %{time_total}s\n" "$url" || echo "Request failed: $url";if [[ -s "$headers" ]];then grep -iE '^(HTTP/|location:|content-language:)' "$headers" | tail -5 || true;fi;if [[ -s "$body" ]];then grep -Eo '<title>[^<]{0,160}</title>|ytInitialPlayerResponse|playabilityStatus|LOGIN_REQUIRED|ERROR' "$body" | head -5 || true;fi;done
+    echo "--- DNS / routes / interfaces ---"
+    for host in google.com accounts.google.com gemini.google.com youtube.com googleapis.com googlevideo.com gstatic.com;do printf '%-24s ' "$host";getent ahostsv4 "$host"|awk '!seen[$1]++{print $1}'|paste -sd ','||true;done
+    ip -4 route;ip -6 route 2>/dev/null||true;ip -br addr
+    resolvectl status 2>/dev/null|sed -n '1,55p'||true
+    echo "--- Time / locale ---";timedatectl 2>&1||true;locale 2>&1||true
     echo "--- IP registration (best effort) ---"
-    if command -v whois >/dev/null 2>&1; then local wip; wip=$(curl -4 -fsS --max-time 8 https://api.ipify.org 2>/dev/null || true); if [[ -n "$wip" ]]; then whois "$wip" 2>&1 | head -45 || true; else echo "Public IPv4 unavailable; WHOIS skipped"; fi; else echo "whois utility not installed; skipped"; fi
+    if command -v whois >/dev/null 2>&1;then if [[ -n "$ipv4" ]];then whois "$ipv4" 2>&1|head -45||true;else echo "IPv4 unavailable; WHOIS skipped";fi;else echo "whois utility not installed; skipped";fi
     echo "--- Interpretation ---"
-    echo "Locale (lang) and gl parameter are not proof of IP country. GeoIP providers may disagree."
-    echo "Google API root HTTP 404 is not an API functionality test; API requests commonly require credentials."
+    echo "GeoIP services are external estimates; Google Locale Matrix reflects requested URL signals and response HTML only."
+    echo "Gemini HTTP status cannot confirm sign-in, account eligibility, or regional availability."
+    echo "YouTube HTTP/HTML checks cannot confirm video playback, Premium eligibility, or account-specific restrictions."
+    echo "No network configuration is changed by this analyzer."
   }
   analyzer_core | tee "$REPORT"
   chmod 600 "$REPORT"
@@ -97,5 +97,5 @@ google_region_analyzer(){
   echo "Report saved (permissions 600): $REPORT"
 }
 showlog(){ echo '--- last 100 log lines (not re-logged) ---';tail -100 "$LOG" | sed 's/^/[LOG] /'; }
-menu(){ root;while true;do header;echo '1) Full diagnostics';echo '2) Change target country/timezone';echo '3) Compare GeoIP with target';echo '4) DNS diagnostics';echo '5) Set DNS (persistent)';echo '6) IPv6 diagnostics';echo '7) Set target timezone';echo '8) Remove managed DNS override';echo '9) Show log';echo '10) Google Region Analyzer';echo '0) Exit';read -r -p 'Select: ' o;case "$o" in 1)diagnostics;pause;;2)settarget;pause;;3)compare;pause;;4)dns;pause;;5)dnsset;pause;;6)ipv6;pause;;7)tzset;pause;;8)restore_dns;pause;;9)showlog;pause;;10)google_region_analyzer;pause;;0)exit;;*)echo 'Invalid option';pause;;esac;done;}
+menu(){ root;while true;do header;echo '1) Full diagnostics';echo '2) Change target country/timezone';echo '3) Compare GeoIP with target';echo '4) DNS diagnostics';echo '5) Set DNS (persistent)';echo '6) IPv6 diagnostics';echo '7) Set target timezone';echo '8) Remove managed DNS override';echo '9) Show log';echo '10) Google Region Deep Analyzer';echo '0) Exit';read -r -p 'Select: ' o;case "$o" in 1)diagnostics;pause;;2)settarget;pause;;3)compare;pause;;4)dns;pause;;5)dnsset;pause;;6)ipv6;pause;;7)tzset;pause;;8)restore_dns;pause;;9)showlog;pause;;10)google_region_analyzer;pause;;0)exit;;*)echo 'Invalid option';pause;;esac;done;}
 menu
