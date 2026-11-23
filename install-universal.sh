@@ -18,4 +18,8 @@ LAUNCH
 chmod 0755 /usr/local/sbin/google-region-force
 echo "Installed universal Google Region Force PRO v3.3.1 (script version detected at runtime)."
 echo "Starting Google Region Force PRO..."
-google-region-force
+if [[ -r /dev/tty && -w /dev/tty ]]; then
+  google-region-force </dev/tty
+else
+  echo "Interactive terminal unavailable. Run: google-region-force"
+fi
