@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-VERSION="3.3.0"
+VERSION="3.3.1"
 CFG=/etc/google-region-force.conf
 LOG=/var/log/google-region-force.log
 BACK=/root/google-region-force-backups
 DNS=/etc/systemd/resolved.conf.d/90-google-region-force.conf
+root(){ [[ $EUID -eq 0 ]] || { echo 'Run as root.'; exit 1; }; }
+root
 mkdir -p "$BACK"; touch "$LOG"
 exec > >(tee -a "$LOG") 2>&1
 TARGET=NL; TZ_TARGET=Europe/Amsterdam
 if [[ -f "$CFG" ]]; then
   [[ -O "$CFG" && ! -L "$CFG" ]] || { echo "Unsafe config ownership/type; refusing to source $CFG"; exit 1; }
+  cfg_mode=$(stat -c %a "$CFG")
+  (( (8#$cfg_mode & 077) == 0 )) || { echo "Unsafe config permissions (must not be accessible to group/others); refusing."; exit 1; }
+  # shellcheck source=/etc/google-region-force.conf
   source "$CFG"
 fi
 TARGET=${TARGET:-NL}; TZ_TARGET=${TZ_TARGET:-Europe/Amsterdam}
 [[ "$TARGET" =~ ^[A-Z]{2}$ ]] || { echo "Invalid TARGET in config; using NL"; TARGET=NL; }
-root(){ [[ $EUID -eq 0 ]] || { echo 'Run as root.'; exit 1; }; }
 pause(){ read -r -p 'Press Enter...' _ || true; }
-backup(){ local d="$BACK/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d"; for f in /etc/resolv.conf /etc/systemd/resolved.conf "$DNS" "$CFG"; do [[ -e "$f" ]] && cp -a --parents "$f" "$d/" || true; done; resolvectl status >"$d/resolved.txt" 2>&1 || true; timedatectl >"$d/time.txt" 2>&1 || true; echo "$d" >"$BACK/latest"; echo "Backup created: $d"; }
+backup(){ local d; d="$BACK/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d"; for f in /etc/resolv.conf /etc/systemd/resolved.conf "$DNS" "$CFG"; do [[ -e "$f" ]] && cp -a --parents "$f" "$d/" || true; done; resolvectl status >"$d/resolved.txt" 2>&1 || true; timedatectl >"$d/time.txt" 2>&1 || true; echo "$d" >"$BACK/latest"; echo "Backup created: $d"; }
 save(){ printf 'TARGET="%s"\nTZ_TARGET="%s"\n' "$TARGET" "$TZ_TARGET" > "$CFG"; chmod 600 "$CFG"; }
 header(){ clear 2>/dev/null || true; echo "Google Region Force PRO v$VERSION"; echo "Target: $TARGET | timezone: $TZ_TARGET"; }
 country(){ local fam="$1" url="$2"; curl "$fam" -fsS --max-time 10 "$url" 2>/dev/null | tr -d '[:space:]' || true; }
