@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-VERSION="3.3.1"
+VERSION="3.3.2"
 CFG=/etc/google-region-force.conf
 LOG=/var/log/google-region-force.log
 BACK=/root/google-region-force-backups
